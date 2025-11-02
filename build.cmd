@@ -83,7 +83,7 @@ echo Installing to plugin root...
 copy /Y build\libvscode_diff.dll ..\libvscode_diff.dll >nul
 
 echo.
-echo ✓ Build successful: libvscode_diff.dll
-echo   Build artifacts in: libvscode-diff\build\
+echo [OK] Build successful: libvscode_diff.dll
+echo     Build artifacts in: libvscode-diff\build\
 cd ..
 endlocal
