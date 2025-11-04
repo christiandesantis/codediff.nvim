@@ -9,6 +9,8 @@ local git = require("vscode-diff.git")
 -- Configuration setup
 function M.setup(opts)
   config.setup(opts)
+  -- Setup highlights (this also initializes lifecycle management)
+  render.setup_highlights()
 end
 
 -- Re-export diff module
