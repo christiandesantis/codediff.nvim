@@ -2,6 +2,84 @@
 -- All operations are async and atomic
 local M = {}
 
+-- LRU Cache for git file content
+-- Stores recently fetched file content to avoid redundant git calls
+local ContentCache = {}
+ContentCache.__index = ContentCache
+
+function ContentCache.new(max_size)
+  local self = setmetatable({}, ContentCache)
+  self.max_size = max_size or 50  -- Default: cache 50 files
+  self.cache = {}  -- {key -> {lines, timestamp}}
+  self.access_order = {}  -- List of keys in LRU order (most recent last)
+  return self
+end
+
+function ContentCache:_make_key(revision, git_root, rel_path)
+  return git_root .. ":::" .. revision .. ":::" .. rel_path
+end
+
+function ContentCache:get(revision, git_root, rel_path)
+  local key = self:_make_key(revision, git_root, rel_path)
+  local entry = self.cache[key]
+  
+  if entry then
+    -- Update access order (move to end = most recently used)
+    for i, k in ipairs(self.access_order) do
+      if k == key then
+        table.remove(self.access_order, i)
+        break
+      end
+    end
+    table.insert(self.access_order, key)
+    
+    return entry.lines
+  end
+  
+  return nil
+end
+
+function ContentCache:put(revision, git_root, rel_path, lines)
+  local key = self:_make_key(revision, git_root, rel_path)
+  
+  -- If already exists, update access order
+  if self.cache[key] then
+    for i, k in ipairs(self.access_order) do
+      if k == key then
+        table.remove(self.access_order, i)
+        break
+      end
+    end
+  else
+    -- Check if cache is full
+    if #self.access_order >= self.max_size then
+      -- Evict least recently used (first item)
+      local lru_key = table.remove(self.access_order, 1)
+      self.cache[lru_key] = nil
+    end
+  end
+  
+  -- Add/update entry
+  self.cache[key] = {
+    lines = lines,
+    timestamp = os.time()
+  }
+  table.insert(self.access_order, key)
+end
+
+function ContentCache:clear()
+  self.cache = {}
+  self.access_order = {}
+end
+
+-- Global cache instance
+local file_content_cache = ContentCache.new(50)
+
+-- Public API to clear cache if needed
+function M.clear_cache()
+  file_content_cache:clear()
+end
+
 -- Run a git command asynchronously
 -- Uses vim.system if available (Neovim 0.10+), falls back to vim.loop.spawn
 local function run_git_async(args, opts, callback)
@@ -136,6 +214,14 @@ end
 -- rel_path: relative path from git root (with forward slashes)
 -- callback: function(err, lines) where lines is a table of strings
 function M.get_file_content(revision, git_root, rel_path, callback)
+  -- Check cache first
+  local cached_lines = file_content_cache:get(revision, git_root, rel_path)
+  if cached_lines then
+    callback(nil, cached_lines)
+    return
+  end
+
+  -- Cache miss - fetch from git
   local git_object = revision .. ":" .. rel_path
 
   run_git_async(
@@ -155,6 +241,9 @@ function M.get_file_content(revision, git_root, rel_path, callback)
       if lines[#lines] == "" then
         table.remove(lines, #lines)
       end
+
+      -- Store in cache
+      file_content_cache:put(revision, git_root, rel_path, lines)
 
       callback(nil, lines)
     end
