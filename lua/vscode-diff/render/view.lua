@@ -43,19 +43,19 @@ end
 --   - filetype string (optional): Filetype for syntax highlighting
 function M.create(original_lines, modified_lines, lines_diff, opts)
   opts = opts or {}
-  
+
   -- Create buffers based on their types
   local left_buf, left_url = create_buffer(opts.left_type, opts.left_config or {})
   local right_buf, right_url = create_buffer(opts.right_type, opts.right_config or {})
-  
+
   -- Determine if we need to use :edit command (for virtual files or new real files)
   local left_needs_edit = (left_url ~= nil)
   local right_needs_edit = (right_url ~= nil)
-  
+
   -- Determine if we need to wait for virtual file content to load
   local has_virtual_buffer = (opts.left_type == M.BufferType.VIRTUAL_FILE) or (opts.right_type == M.BufferType.VIRTUAL_FILE)
   local defer_render = has_virtual_buffer or left_needs_edit or right_needs_edit
-  
+
   -- Always defer render when we need to use :edit or have virtual files
   local result = nil
 
@@ -63,7 +63,7 @@ function M.create(original_lines, modified_lines, lines_diff, opts)
   vim.cmd("tabnew")
   local initial_buf = vim.api.nvim_get_current_buf()
   local left_win = vim.api.nvim_get_current_win()
-  
+
   -- Set left buffer/window
   if left_needs_edit then
     vim.cmd("edit " .. vim.fn.fnameescape(left_url))
@@ -74,7 +74,7 @@ function M.create(original_lines, modified_lines, lines_diff, opts)
 
   vim.cmd("vsplit")
   local right_win = vim.api.nvim_get_current_win()
-  
+
   -- Set right buffer/window
   if right_needs_edit then
     vim.cmd("edit " .. vim.fn.fnameescape(right_url))
@@ -82,7 +82,7 @@ function M.create(original_lines, modified_lines, lines_diff, opts)
   else
     vim.api.nvim_win_set_buf(right_win, right_buf)
   end
-  
+
   -- Clean up initial buffer
   if vim.api.nvim_buf_is_valid(initial_buf) and initial_buf ~= left_buf and initial_buf ~= right_buf then
     pcall(vim.api.nvim_buf_delete, initial_buf, { force = true })
@@ -105,19 +105,47 @@ function M.create(original_lines, modified_lines, lines_diff, opts)
     vim.wo[left_win][opt] = val
     vim.wo[right_win][opt] = val
   end
-  
+
   -- Note: Filetype is automatically detected when using :edit for real files
   -- For virtual files, filetype is set in the virtual_file module
 
   -- Register this diff view for lifecycle management
   local current_tab = vim.api.nvim_get_current_tabpage()
   lifecycle.register(current_tab, left_buf, right_buf, left_win, right_win)
-  
+
   -- Set up rendering after buffers are ready
   -- For virtual files, we wait for VscodeDiffVirtualFileLoaded event
-  -- For real files loaded via :edit, we render immediately (they're synchronously loaded)
+  -- Unified rendering function - executes everything once buffers are ready
+  local render_everything = function()
+    -- Render diff highlights (content must already be in buffers)
+    result = core.render_diff(left_buf, right_buf, original_lines, modified_lines, lines_diff)
+
+    -- Apply semantic tokens for virtual buffers
+    if opts.left_type == M.BufferType.VIRTUAL_FILE then
+      semantic.apply_semantic_tokens(left_buf, right_buf)
+    end
+    if opts.right_type == M.BufferType.VIRTUAL_FILE then
+      semantic.apply_semantic_tokens(right_buf, left_buf)
+    end
+
+    -- Auto-scroll to first change
+    if #lines_diff.changes > 0 then
+      local first_change = lines_diff.changes[1]
+      local target_line = first_change.original.start_line
+
+      pcall(vim.api.nvim_win_set_cursor, left_win, {target_line, 0})
+      pcall(vim.api.nvim_win_set_cursor, right_win, {target_line, 0})
+
+      if vim.api.nvim_win_is_valid(right_win) then
+        vim.api.nvim_set_current_win(right_win)
+        vim.cmd("normal! zz")
+      end
+    end
+  end
+
+  -- Choose timing based on buffer types
   if has_virtual_buffer then
-    -- Virtual file(s) exist: Set up autocmd to apply diff highlights after content loads
+    -- Virtual file(s): Wait for BufReadCmd to load content
     local trigger_buf = (opts.left_type == M.BufferType.VIRTUAL_FILE) and left_buf or right_buf
     local group = vim.api.nvim_create_augroup('VscodeDiffVirtualFileHighlight_' .. trigger_buf, { clear = true })
     vim.api.nvim_create_autocmd('User', {
@@ -125,58 +153,14 @@ function M.create(original_lines, modified_lines, lines_diff, opts)
       pattern = 'VscodeDiffVirtualFileLoaded',
       callback = function(event)
         if event.data and event.data.buf == trigger_buf then
-          vim.schedule(function()
-            result = core.render_diff(left_buf, right_buf, original_lines, modified_lines, lines_diff, 
-                                       opts.right_type == M.BufferType.REAL_FILE, true)
-            
-            -- Apply semantic tokens if we have virtual file(s)
-            vim.schedule(function()
-              if opts.left_type == M.BufferType.VIRTUAL_FILE then
-                semantic.apply_semantic_tokens(left_buf, right_buf)
-              end
-              if opts.right_type == M.BufferType.VIRTUAL_FILE then
-                semantic.apply_semantic_tokens(right_buf, left_buf)
-              end
-            end)
-            
-            if #lines_diff.changes > 0 then
-              local first_change = lines_diff.changes[1]
-              local target_line = first_change.original.start_line
-              
-              pcall(vim.api.nvim_win_set_cursor, left_win, {target_line, 0})
-              pcall(vim.api.nvim_win_set_cursor, right_win, {target_line, 0})
-              
-              if vim.api.nvim_win_is_valid(right_win) then
-                vim.api.nvim_set_current_win(right_win)
-                vim.cmd("normal! zz")
-              end
-            end
-            
-            vim.api.nvim_del_augroup_by_id(group)
-          end)
+          vim.schedule(render_everything)
+          vim.api.nvim_del_augroup_by_id(group)
         end
       end,
     })
   else
-    -- Real files only: Render immediately after :edit loads them
-    vim.schedule(function()
-      -- For real files loaded via :edit, skip setting content (already loaded)
-      local skip_left = (opts.left_type == M.BufferType.REAL_FILE)
-      local skip_right = (opts.right_type == M.BufferType.REAL_FILE)
-      
-      result = core.render_diff(left_buf, right_buf, original_lines, modified_lines, lines_diff, skip_right, skip_left)
-      
-      if #lines_diff.changes > 0 then
-        local first_change = lines_diff.changes[1]
-        local target_line = first_change.original.start_line
-        
-        vim.api.nvim_win_set_cursor(left_win, {target_line, 0})
-        vim.api.nvim_win_set_cursor(right_win, {target_line, 0})
-        
-        vim.api.nvim_set_current_win(right_win)
-        vim.cmd("normal! zz")
-      end
-    end)
+    -- Real files only: Defer until :edit completes
+    vim.schedule(render_everything)
   end
 
   return {
