@@ -12,6 +12,11 @@ M.defaults = {
     char_brightness = 1.4,  -- Multiplier for character backgrounds (1.3 = 130% = brighter)
   },
 
+  -- Diff view behavior
+  diff = {
+    disable_inlay_hints = true,  -- Disable inlay hints in diff windows for cleaner view
+  },
+
   -- Buffer options
   buffer_options = {
     modifiable = false,

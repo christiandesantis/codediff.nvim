@@ -110,6 +110,7 @@ function M.create(original_lines, modified_lines, lines_diff, opts)
     cursorline = true,
     scrollbind = true,
     wrap = false,
+    winbar = "",  -- Disable winbar to ensure alignment between windows
   }
 
   for opt, val in pairs(win_opts) do
