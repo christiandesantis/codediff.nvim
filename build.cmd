@@ -63,13 +63,13 @@ goto :build_done
 :build_clang
 echo Using Clang compiler...
 if not exist build mkdir build
-clang.exe -shared -Wall -Wextra -std=c11 -O2 -Iinclude -Ivendor -o build\libvscode_diff.dll %SOURCES%
+clang.exe -shared -Wall -Wextra -std=c11 -O2 -DUTF8PROC_STATIC -Iinclude -Ivendor -o build\libvscode_diff.dll %SOURCES%
 goto :build_done
 
 :build_gcc
 echo Using MinGW GCC compiler...
 if not exist build mkdir build
-gcc.exe -shared -Wall -Wextra -std=c11 -O2 -Iinclude -Ivendor -o build\libvscode_diff.dll %SOURCES%
+gcc.exe -shared -Wall -Wextra -std=c11 -O2 -DUTF8PROC_STATIC -Iinclude -Ivendor -o build\libvscode_diff.dll %SOURCES%
 goto :build_done
 
 :build_done
