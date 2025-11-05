@@ -25,7 +25,7 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential
+          sudo apt-get install -y build-essential cmake
 
       - name: Install Neovim (Ubuntu)
         if: matrix.os == 'ubuntu-latest'
@@ -61,6 +61,20 @@ jobs:
         if: matrix.os == 'windows-latest'
         run: |
           .\build.cmd
+
+      - name: Run C unit tests (Ubuntu/macOS)
+        if: matrix.os != 'windows-latest'
+        run: |
+          make test-c
+
+      - name: Run C unit tests (Windows)
+        if: matrix.os == 'windows-latest'
+        shell: cmd
+        run: |
+          cmake -B build
+          cmake --build build --config Release
+          cd build
+          ctest -C Release --output-on-failure
 
       - name: Run Neovim tests (Ubuntu/macOS)
         if: matrix.os != 'windows-latest'
