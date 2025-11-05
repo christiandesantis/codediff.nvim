@@ -22,7 +22,7 @@ jobs:
       tag_created: ${{ steps.check_tag.outputs.created }}
     steps:
       - name: Generate GitHub App Token
-        id: generate-token
+        id: generate_token
         uses: actions/create-github-app-token@v2
         with:
           app-id: ${{ vars.APP_ID }}
@@ -32,7 +32,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          token: ${{ steps.generate-token.outputs.token }}
+          token: ${{ steps.generate_token.outputs.token }}
           ref: main
 
       - name: Set up Node.js
