@@ -26,9 +26,9 @@ end
 -- Parse a vscodediff:// URL
 -- Returns: git_root, commit, filepath
 function M.parse_url(url)
-  -- Pattern expects commit to be a SHA hash (hex chars)
+  -- Pattern expects commit to be a SHA hash (hex chars, case-insensitive)
   -- Safe since we always resolve branch names to commit hashes
-  local pattern = '^vscodediff:///(.-)///([a-f0-9]+)/(.+)$'
+  local pattern = '^vscodediff:///(.-)///([a-fA-F0-9]+)/(.+)$'
   local git_root, commit, filepath = url:match(pattern)
   return git_root, commit, filepath
 end

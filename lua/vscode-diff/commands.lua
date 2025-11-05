@@ -41,7 +41,7 @@ local function handle_git_diff(revision)
         return
       end
 
-      git.get_file_content(revision, git_root, relative_path, function(err, lines_git)
+      git.get_file_content(commit_hash, git_root, relative_path, function(err, lines_git)
         vim.schedule(function()
           if err then
             vim.notify(err, vim.log.levels.ERROR)

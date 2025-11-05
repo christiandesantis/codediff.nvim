@@ -10,7 +10,7 @@ ContentCache.__index = ContentCache
 function ContentCache.new(max_size)
   local self = setmetatable({}, ContentCache)
   self.max_size = max_size or 50  -- Default: cache 50 files
-  self.cache = {}  -- {key -> {lines, timestamp}}
+  self.cache = {}  -- {key -> lines}
   self.access_order = {}  -- List of keys in LRU order (most recent last)
   return self
 end
@@ -19,21 +19,25 @@ function ContentCache:_make_key(revision, git_root, rel_path)
   return git_root .. ":::" .. revision .. ":::" .. rel_path
 end
 
+-- Helper to update access order (move key to end = most recently used)
+function ContentCache:_update_access_order(key)
+  for i, k in ipairs(self.access_order) do
+    if k == key then
+      table.remove(self.access_order, i)
+      break
+    end
+  end
+  table.insert(self.access_order, key)
+end
+
 function ContentCache:get(revision, git_root, rel_path)
   local key = self:_make_key(revision, git_root, rel_path)
   local entry = self.cache[key]
   
   if entry then
-    -- Update access order (move to end = most recently used)
-    for i, k in ipairs(self.access_order) do
-      if k == key then
-        table.remove(self.access_order, i)
-        break
-      end
-    end
-    table.insert(self.access_order, key)
-    
-    return entry.lines
+    self:_update_access_order(key)
+    -- Return a copy to prevent cache corruption
+    return vim.list_extend({}, entry)
   end
   
   return nil
@@ -44,12 +48,7 @@ function ContentCache:put(revision, git_root, rel_path, lines)
   
   -- If already exists, update access order
   if self.cache[key] then
-    for i, k in ipairs(self.access_order) do
-      if k == key then
-        table.remove(self.access_order, i)
-        break
-      end
-    end
+    self:_update_access_order(key)
   else
     -- Check if cache is full
     if #self.access_order >= self.max_size then
@@ -57,14 +56,11 @@ function ContentCache:put(revision, git_root, rel_path, lines)
       local lru_key = table.remove(self.access_order, 1)
       self.cache[lru_key] = nil
     end
+    table.insert(self.access_order, key)
   end
   
-  -- Add/update entry
-  self.cache[key] = {
-    lines = lines,
-    timestamp = os.time()
-  }
-  table.insert(self.access_order, key)
+  -- Store a copy to prevent cache corruption
+  self.cache[key] = vim.list_extend({}, lines)
 end
 
 function ContentCache:clear()
