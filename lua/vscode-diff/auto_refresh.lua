@@ -62,6 +62,42 @@ local function do_diff_update(bufnr)
 
     -- Update decorations on both buffers
     core.render_diff(session.left_bufnr, session.right_bufnr, left_lines, right_lines, lines_diff)
+    
+    -- Re-sync scrollbind after filler changes
+    -- This ensures both windows stay aligned even if fillers were added/removed
+    local left_win, right_win = nil, nil
+    for _, win in ipairs(vim.api.nvim_list_wins()) do
+      local buf = vim.api.nvim_win_get_buf(win)
+      if buf == session.left_bufnr then
+        left_win = win
+      elseif buf == session.right_bufnr then
+        right_win = win
+      end
+    end
+    
+    if left_win and right_win then
+      local current_win = vim.api.nvim_get_current_win()
+      
+      -- Only resync if user is in one of the diff windows
+      if current_win == left_win or current_win == right_win then
+        -- Step 1: Remember cursor position after render
+        local saved_line = vim.api.nvim_win_get_cursor(current_win)[1]
+        
+        -- Step 2: Reset both windows to line 1 (baseline)
+        vim.api.nvim_win_set_cursor(left_win, {1, 0})
+        vim.api.nvim_win_set_cursor(right_win, {1, 0})
+        
+        -- Step 3: Re-establish scrollbind (reset sync state)
+        vim.wo[left_win].scrollbind = false
+        vim.wo[right_win].scrollbind = false
+        vim.wo[left_win].scrollbind = true
+        vim.wo[right_win].scrollbind = true
+        
+        -- Step 4: Set both to saved line (like initial creation)
+        pcall(vim.api.nvim_win_set_cursor, left_win, {saved_line, 0})
+        pcall(vim.api.nvim_win_set_cursor, right_win, {saved_line, 0})
+      end
+    end
   end)
 end
 
