@@ -37,7 +37,7 @@
  *   - Keeps '\r' if present (doesn't strip it like fgets does)
  */
 static int read_file_lines(const char* filename, char*** lines_out) {
-    FILE* file = fopen(filename, "r");
+    FILE* file = fopen(filename, "rb");
     if (!file) {
         fprintf(stderr, "Error: Cannot open file '%s'\n", filename);
         return -1;
