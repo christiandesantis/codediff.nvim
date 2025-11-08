@@ -86,12 +86,16 @@ file(WRITE "${CMAKE_CURRENT_SOURCE_DIR}/Makefile.win"
 # Usage: nmake /f Makefile.win
 # Users: Use build.cmd instead (no CMake required)
 
-all: build
+all: do-build
 
-build:
-\tcmake -B build -S .
-\tcmake --build build --config Release
+# Force build to always run (nmake doesn't have .PHONY)
+do-build:
+\t@cmake -B build -S .
+\t@cmake --build build --config Release
 \t@echo Build successful
+\t@echo NOTE: If DLL copy failed, close nvim and rebuild
+
+build: do-build
 
 test: test-c test-lua
 

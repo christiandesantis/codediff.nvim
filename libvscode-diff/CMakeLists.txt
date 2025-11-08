@@ -151,12 +151,26 @@ install(TARGETS vscode_diff
 )
 
 # Custom install target that copies immediately
-add_custom_command(TARGET vscode_diff POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy
-        $<TARGET_FILE:vscode_diff>
-        ${INSTALL_DIR}/libvscode_diff$<TARGET_FILE_SUFFIX:vscode_diff>
-    COMMENT "Installing library to plugin root"
-)
+# Try to copy, but don't fail if file is locked (nvim running)
+if(WIN32)
+    # Windows: Copy with error suppression if file is locked
+    add_custom_command(TARGET vscode_diff POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E echo "Installing library to plugin root..."
+        COMMAND ${CMAKE_COMMAND} -E copy
+            $<TARGET_FILE:vscode_diff>
+            ${INSTALL_DIR}/libvscode_diff$<TARGET_FILE_SUFFIX:vscode_diff>
+            || (exit 0)
+        COMMENT "Installing library (may fail if nvim is running - restart nvim to use new version)"
+    )
+else()
+    # Unix: Normal copy (no locking issues)
+    add_custom_command(TARGET vscode_diff POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy
+            $<TARGET_FILE:vscode_diff>
+            ${INSTALL_DIR}/libvscode_diff$<TARGET_FILE_SUFFIX:vscode_diff>
+        COMMENT "Installing library to plugin root"
+    )
+endif()
 
 # Testing
 enable_testing()
@@ -280,6 +294,16 @@ if(USE_OPENMP)
     target_link_libraries(diff PRIVATE OpenMP::OpenMP_C)
     target_compile_definitions(diff PRIVATE USE_OPENMP)
 endif()
+
+# Copy diff tool to plugin root for easy access (similar to library)
+# Delete first to ensure fresh copy (forces rebuild if user deleted it)
+add_custom_command(TARGET diff POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E remove -f ${INSTALL_DIR}/$<TARGET_FILE_NAME:diff>
+    COMMAND ${CMAKE_COMMAND} -E copy
+        $<TARGET_FILE:diff>
+        ${INSTALL_DIR}/$<TARGET_FILE_NAME:diff>
+    COMMENT "Installing diff CLI tool to plugin root"
+)
 
 # Print configuration
 message(STATUS "===========================================")

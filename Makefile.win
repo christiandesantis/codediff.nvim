@@ -3,12 +3,16 @@
 # Usage: nmake /f Makefile.win
 # Users: Use build.cmd instead (no CMake required)
 
-all: build
+all: do-build
 
-build:
-	cmake -B build -S .
-	cmake --build build --config Release
+# Force build to always run (nmake doesn't have .PHONY)
+do-build:
+	@cmake -B build -S .
+	@cmake --build build --config Release
 	@echo Build successful
+	@echo NOTE: If DLL copy failed, close nvim and rebuild
+
+build: do-build
 
 test: test-c test-lua
 
