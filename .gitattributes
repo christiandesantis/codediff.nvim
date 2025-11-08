@@ -1,3 +1,7 @@
 # Mark CMake-generated files
 build.sh linguist-generated=true
 build.cmd linguist-generated=true
+
+# Force LF line endings for generated Makefiles to avoid spurious diffs
+Makefile text eol=lf linguist-generated=true
+Makefile.win text eol=lf linguist-generated=true

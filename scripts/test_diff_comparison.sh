@@ -46,17 +46,21 @@ done
 
 mkdir -p "$TEMP_DIR"
 
-# Auto-build binaries if they don't exist
+# Always rebuild C diff binary to ensure latest changes
+echo "Building C diff binary with clean build..."
+cd "$REPO_ROOT"
+# Remove old binary and object files to force rebuild
+rm -f build/libvscode-diff/diff
+find build/libvscode-diff/CMakeFiles/diff.dir -name "*.o" -delete 2>/dev/null || true
+# Reconfigure if needed and build
+cmake -B build > /dev/null 2>&1
+cmake --build build --target diff > /dev/null 2>&1
 if [ ! -f "$C_DIFF" ]; then
-    echo "C diff binary not found. Building with CMake..."
-    cd "$REPO_ROOT"
-    cmake -B build
-    cmake --build build --target diff
-    if [ ! -f "$C_DIFF" ]; then
-        echo "Error: Failed to build C diff binary"
-        exit 1
-    fi
+    echo "Error: Failed to build C diff binary"
+    exit 1
 fi
+echo "✓ C diff binary built successfully"
+echo ""
 
 if [ ! -f "$NODE_DIFF" ]; then
     echo "Node diff binary not found. Building..."
