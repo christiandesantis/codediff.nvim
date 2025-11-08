@@ -8,44 +8,28 @@ This plugin provides high-quality character-level diff highlighting similar to V
 
 The diff algorithm works in two phases:
 
-1. **Line-level diff** (~30% of time)
-   - Fast comparison of entire lines
-   - Always completes quickly
-   - Produces the basic line-by-line change structure
+1. **Line-level diff** - Compares entire lines to find which lines changed
+2. **Character-level refinement** - For each changed line, computes exactly what characters differ
 
-2. **Character-level refinement** (~70% of time)
-   - Detailed analysis within each changed line
-   - Highlights specific character changes (like VSCode)
-   - This is where timeout control matters
+Each changed region is analyzed **independently**. The timeout applies to each individual Myers algorithm computation.
 
-### Intelligent Timeout
+### Why Timeout Works Well
 
-The timeout applies to the **entire diff computation**. When a timeout occurs:
+Here's the key insight: **useful character diffs are naturally fast**.
 
-- Line-level diff always completes (it's fast)
-- Character refinement runs as long as time allows
-- Slow regions automatically fall back to line-level highlighting
-- Fast regions get full character detail
+Changes where character-level detail matters (variable renames, small edits) typically complete in milliseconds. Changes where character detail doesn't matter much (massive insertions, complete rewrites) take longer.
 
-**Result**: You get the best quality possible within your time budget.
+The timeout naturally filters based on usefulness - fast useful analysis completes, slow less-useful analysis times out.
 
-## Why This Matters
+## Why Timeout Control Matters
 
-### The Problem
+Without timeout, some diffs (like comparing files with large insertions) can take multiple seconds. With timeout, you set the maximum wait time.
 
-Some code changes are expensive to analyze at the character level:
-- Large blocks of inserted/deleted code (hundreds of lines)
-- Highly complex refactorings with minimal common content
-- Files with very long lines
+The timeout works well because it aligns with usefulness:
+- Small, meaningful changes → fast analysis → completes before timeout
+- Large, less-useful changes → slow analysis → times out gracefully
 
-These cases can take 1-2 seconds for character analysis, while most changes complete in milliseconds.
-
-### The Solution
-
-With timeout control:
-- **99% of changes** get full character highlighting (fast cases)
-- **1% of changes** fall back to line-level highlighting (slow cases)
-- **Total time** stays predictable and fast
+Even a short timeout (100ms) captures most useful character detail while keeping overall diff time predictable.
 
 ## Performance Comparison
 
@@ -53,12 +37,12 @@ Typical large file diff (1150 → 2352 lines):
 
 | Timeout | Time | Character Detail | vs Git |
 |---------|------|------------------|--------|
-| 5000ms (default) | 1.2s | 100% | 12x slower, full detail |
-| 1000ms (fast) | 0.6s | 99% | 6x slower, nearly full |
-| 100ms (ultra-fast) | 0.2s | ~20% | 2x slower, some detail |
-| Git diff | 0.1s | 0% | Baseline |
+| 5000ms (default) | 1.2s | Full detail | 12x slower |
+| 1000ms (fast) | 0.6s | Most detail | 6x slower |
+| 100ms (minimal) | 0.4s | Useful detail | 4x slower |
+| Git diff | 0.1s | None | Baseline |
 
-**Recommended: 1000ms** - 2× faster with 99% quality retained.
+Even at 100ms, you'll see meaningful character-level highlighting where it matters most. Lower timeouts primarily skip the expensive cases that don't benefit much from character detail anyway.
 
 ## Configuration
 
@@ -88,7 +72,7 @@ require("vscode-diff").setup({
 
 **Recommended for**: Most users, especially those with large codebases.
 
-### Ultra-Fast Mode (Git-Like Speed)
+### Minimal Timeout Mode
 
 ```lua
 require("vscode-diff").setup({
@@ -98,74 +82,42 @@ require("vscode-diff").setup({
 })
 ```
 
-**Use when**: You work with extremely large files and prefer speed over character detail.
+**Use when**: You prioritize speed.
 
-**Result**: Similar to Git diff but still better (some character highlighting on fast regions).
+**Result**: You'll still see character-level detail in most places - the timeout primarily skips expensive edge cases.
 
 
 
 ## Key Benefits
 
-### 1. Never Worse Than Git Diff
+### 1. Better Quality Than Git Diff
 
-Even at the shortest timeout (100ms), you get:
-- ✓ All line-level changes (same as Git)
-- ✓ Some character-level detail (bonus)
-- ✓ Only 2× slower than Git
+You get character-level detail that Git doesn't provide, at the cost of being several times slower. The quality improvements come from more sophisticated algorithms.
 
-### 2. Automatic Optimization
+### 2. Natural Optimization
 
-The timeout **naturally filters out expensive operations**:
-- Small changes complete instantly (< 50ms)
-- Normal changes complete quickly (< 200ms)
-- Pathological cases hit timeout and fall back gracefully
-
-No manual configuration needed - it just works.
+The timeout aligns well with usefulness - changes where character detail matters tend to be fast, while changes where it matters less tend to be slow. This means even shorter timeouts capture most useful detail.
 
 ### 3. Predictable Performance
 
-You set the maximum wait time, and the plugin respects it:
-- 1000ms timeout → guaranteed response in ~1 second
-- No surprises, no hangs
-
-### 4. Best-Effort Quality
-
-The plugin always tries to give you full detail but gracefully degrades when time runs out:
-- Most regions: full character highlighting ✓
-- Slow regions: line-level highlighting (still useful)
-- Never fails, never hangs
+Set your maximum wait time and the plugin respects it. No surprises or hangs, even with large files.
 
 ## When to Adjust Timeout
 
-### Increase Timeout (→ 5000ms or higher) if:
-- You rarely diff large files
-- You want maximum detail even on complex changes
-- You don't mind occasional 1-2 second waits
+**Lower timeout (500-1000ms)** if you frequently work with large diffs and want faster response.
 
-### Decrease Timeout (→ 1000ms or lower) if:
-- You frequently diff large files
-- You prioritize speed over perfection
-- You're on a slower machine
+**Higher timeout (5000ms+)** if you want maximum detail and don't mind occasional waits.
 
-### Keep Default (5000ms) if:
-- You want VSCode-like behavior
-- Balanced approach works for you
+**Default (5000ms)** balances quality and speed for most use cases.
 
 ## Technical Details
 
-### What Gets Optimized
+The algorithm processes each changed region independently. Timeout applies to each Myers computation separately, not the total time.
 
-The timeout primarily affects **character-level refinement**:
-- Massive code insertions/deletions (15+ KB)
-- Highly divergent line changes
-- Files with very long lines (1000+ chars)
-
-### What Stays Fast
-
-These operations complete quickly regardless of timeout:
-- Line-level diff (always fast)
-- Small character changes (complete in milliseconds)
-- Similar line changes (low algorithmic complexity)
+This means:
+- Fast regions complete and provide full detail
+- Slow regions timeout and fall back to line-level
+- The timeout value doesn't need to be perfect - it naturally adapts to the complexity of your changes
 
 
 
@@ -188,11 +140,6 @@ max_computation_time_ms = 5000  -- Default, 100% quality
 
 ## Summary
 
-The timeout mechanism ensures your diff view is **always responsive** while providing **the best quality possible** within your time budget. It's a smart trade-off that:
+Timeout control keeps diff computation responsive by allowing you to set a maximum wait time. Since useful character changes tend to be fast while less-useful ones are slow, even moderate timeouts capture most of the useful detail.
 
-- Keeps fast cases fast (no overhead)
-- Makes slow cases acceptable (graceful degradation)
-- Never makes things worse (always better than Git diff)
-- Gives you control (one simple parameter)
-
-This design means you get **VSCode-quality diffs** with **predictable performance** - the best of both worlds.
+You trade speed for quality compared to basic tools like Git diff - the algorithm is more sophisticated but takes longer. The timeout mechanism gives you control over this trade-off with a single parameter.
