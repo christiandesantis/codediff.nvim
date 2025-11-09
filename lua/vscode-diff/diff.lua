@@ -4,7 +4,7 @@
 local M = {}
 local ffi = require("ffi")
 
--- Load the C library
+-- Load the C library with automatic installation
 local lib_name = "libvscode_diff"
 local lib_ext
 if ffi.os == "Windows" then
@@ -16,6 +16,20 @@ else
 end
 
 local lib_path = vim.fn.fnamemodify(debug.getinfo(1).source:sub(2), ":h:h:h") .. "/" .. lib_name .. lib_ext
+
+-- Check if library exists, if not, try to install it
+if vim.fn.filereadable(lib_path) ~= 1 then
+  local installer = require("vscode-diff.installer")
+  local success, err = installer.install({ silent = false })
+  if not success then
+    error(string.format(
+      "libvscode-diff not found and automatic installation failed: %s\n" ..
+      "Please build manually using 'make' or 'build.cmd', or download from releases.",
+      err or "unknown error"
+    ))
+  end
+end
+
 local lib = ffi.load(lib_path)
 
 -- FFI type definitions matching C types.h
