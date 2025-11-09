@@ -56,15 +56,19 @@ end
 -- Build download URL for GitHub release
 local function build_download_url(os, arch)
   local version_file = get_plugin_root() .. "/VERSION"
-  local version = "0.8.0" -- Default fallback
+  local version = nil
   
-  -- Try to read version from VERSION file
+  -- Read version from VERSION file (required)
   local f = io.open(version_file, "r")
   if f then
     local content = f:read("*all")
     f:close()
     -- Extract version, remove trailing whitespace/newlines
     version = content:match("^%s*(.-)%s*$")
+  end
+  
+  if not version or version == "" then
+    return nil, nil, "Failed to read VERSION file at: " .. version_file
   end
   
   local ext = get_lib_ext()
@@ -75,31 +79,50 @@ local function build_download_url(os, arch)
     filename
   )
   
-  return url, filename
+  return url, filename, nil
 end
 
 -- Check if a command exists
 local function command_exists(cmd)
-  local handle = io.popen("which " .. cmd .. " 2>/dev/null")
-  if handle then
-    local result = handle:read("*a")
-    handle:close()
-    return result ~= ""
+  local ffi = require("ffi")
+  if ffi.os == "Windows" then
+    -- On Windows, use 'where' command instead of 'which'
+    local handle = io.popen("where " .. cmd .. " 2>nul")
+    if handle then
+      local result = handle:read("*a")
+      handle:close()
+      return result ~= ""
+    end
+    return false
+  else
+    local handle = io.popen("which " .. cmd .. " 2>/dev/null")
+    if handle then
+      local result = handle:read("*a")
+      handle:close()
+      return result ~= ""
+    end
+    return false
   end
-  return false
 end
 
--- Download file using curl or wget
+-- Download file using curl, wget, or PowerShell
 local function download_file(url, dest_path)
   local cmd
+  local ffi = require("ffi")
   
-  -- Try curl first (more common and better error handling)
+  -- Try curl first (most common, best error handling)
   if command_exists("curl") then
     cmd = string.format("curl -fsSL -o '%s' '%s'", dest_path, url)
   elseif command_exists("wget") then
     cmd = string.format("wget -q -O '%s' '%s'", dest_path, url)
+  elseif ffi.os == "Windows" then
+    -- On Windows, try PowerShell Invoke-WebRequest
+    cmd = string.format(
+      'powershell -NoProfile -Command "Invoke-WebRequest -Uri \'%s\' -OutFile \'%s\'"',
+      url, dest_path
+    )
   else
-    return false, "Neither curl nor wget found. Please install curl or wget."
+    return false, "No download tool found. Please install curl or wget."
   end
   
   local exit_code = os.execute(cmd)
@@ -146,7 +169,13 @@ function M.install(opts)
   end
   
   -- Build download URL
-  local url, filename = build_download_url(os_name, arch)
+  local url, filename, url_err = build_download_url(os_name, arch)
+  
+  if not url then
+    local msg = "Failed to build download URL: " .. (url_err or "unknown error")
+    vim.notify(msg, vim.log.levels.ERROR)
+    return false, msg
+  end
   
   if not opts.silent then
     vim.notify("Downloading from: " .. url, vim.log.levels.INFO)
