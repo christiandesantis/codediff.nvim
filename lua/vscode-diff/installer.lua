@@ -24,6 +24,27 @@ end
 
 -- Detect architecture
 local function detect_arch()
+  local ffi = require("ffi")
+  
+  -- Windows-specific detection using environment variables
+  if ffi.os == "Windows" then
+    local processor_arch = vim.fn.getenv("PROCESSOR_ARCHITECTURE")
+    local processor_arch_w6432 = vim.fn.getenv("PROCESSOR_ARCHITEW6432")
+    
+    -- PROCESSOR_ARCHITEW6432 is set when running 32-bit process on 64-bit Windows
+    local arch = processor_arch_w6432 ~= vim.NIL and processor_arch_w6432 or processor_arch
+    
+    if arch then
+      arch = arch:lower()
+      if arch:match("amd64") or arch:match("x64") then
+        return "x64"
+      elseif arch:match("arm64") then
+        return "arm64"
+      end
+    end
+  end
+  
+  -- Unix-like systems: use uname
   local uname = vim.loop.os_uname()
   local machine = uname.machine:lower()
   
@@ -32,9 +53,10 @@ local function detect_arch()
     return "x64"
   elseif machine:match("aarch64") or machine:match("arm64") then
     return "arm64"
-  else
-    return nil, "Unsupported architecture: " .. machine
   end
+  
+  -- If we still can't detect, return error
+  return nil, "Unsupported architecture: " .. (machine or "unknown")
 end
 
 -- Get library extension for current OS
