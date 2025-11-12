@@ -255,7 +255,7 @@ end
 -- }
 function M.get_status(git_root, callback)
   run_git_async(
-    { "status", "--porcelain" },
+    { "status", "--porcelain", "-uall" },
     { cwd = git_root },
     function(err, output)
       if err then
