@@ -313,6 +313,26 @@ function M.create_session(tabpage, mode, git_root, original_path, modified_path,
   -- Setup tab autocmds
   local tab_augroup = vim.api.nvim_create_augroup('vscode_diff_lifecycle_tab_' .. tabpage, { clear = true })
 
+  -- Force disable winbar to prevent alignment issues
+  local function ensure_no_winbar()
+    if vim.api.nvim_win_is_valid(original_win) then
+      vim.wo[original_win].winbar = ""
+    end
+    if vim.api.nvim_win_is_valid(modified_win) then
+      vim.wo[modified_win].winbar = ""
+    end
+  end
+
+  vim.api.nvim_create_autocmd({'BufWinEnter', 'FileType'}, {
+    group = tab_augroup,
+    callback = function(args)
+      local win = vim.api.nvim_get_current_win()
+      if win == original_win or win == modified_win then
+        ensure_no_winbar()
+      end
+    end,
+  })
+
   vim.api.nvim_create_autocmd('TabLeave', {
     group = tab_augroup,
     callback = function()

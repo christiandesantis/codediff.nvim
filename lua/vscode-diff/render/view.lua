@@ -215,7 +215,6 @@ function M.create(original_lines, modified_lines, session_config, filetype)
     relativenumber = false,
     cursorline = true,
     wrap = false,
-    winbar = "",  -- Disable winbar to ensure alignment between windows
   }
 
   for opt, val in pairs(win_opts) do
