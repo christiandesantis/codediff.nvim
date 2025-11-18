@@ -329,9 +329,9 @@ function M.create(original_lines, modified_lines, session_config, filetype)
 
   -- For explorer mode, create the explorer sidebar after diff windows are set up
   if session_config.mode == "explorer" and session_config.explorer_data then
-    -- Calculate explorer width: 20% of terminal width or 30 columns, whichever is smaller
+    -- Calculate explorer width: 20% of terminal width or 40 columns, whichever is smaller (matches neo-tree default)
     local total_width = vim.o.columns
-    local explorer_width = math.min(30, math.floor(total_width * 0.2))
+    local explorer_width = math.min(40, math.floor(total_width * 0.2))
     
     -- Create explorer in left sidebar (explorer manages its own lifecycle and callbacks)
     local explorer = require('vscode-diff.render.explorer')

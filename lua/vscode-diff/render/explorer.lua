@@ -64,7 +64,7 @@ local function create_tree_data(status_result, git_root)
 end
 
 -- Render tree node
-local function prepare_node(node)
+local function prepare_node(node, max_width)
   local line = NuiLine()
   local data = node.data or {}
 
@@ -78,21 +78,43 @@ local function prepare_node(node)
     local indent = string.rep("  ", node:get_depth() - 1)
     line:append(indent)
     
+    local icon_part = ""
     if data.icon then
-      line:append(data.icon .. " ", data.icon_color or "Normal")
+      icon_part = data.icon .. " "
+      line:append(icon_part, data.icon_color or "Normal")
     end
     
-    -- File path (truncate if too long)
+    -- Status symbol at the end (e.g., "M", "D", "??")
+    local status_symbol = data.status_symbol or ""
+    
+    -- Calculate how much width we've used and reserve for status
+    -- Use simple byte count for consistent calculation
+    local used_width = #indent + #icon_part
+    local status_reserve = #status_symbol + 2  -- 2 spaces padding before status
+    local available_for_path = max_width - used_width - status_reserve
+    
+    -- Truncate path from the beginning (show filename, hide root folders)
     local display_path = data.path or node.text
-    if #display_path > 40 then
-      display_path = "..." .. display_path:sub(-37)
+    
+    if #display_path > available_for_path then
+      -- Keep the end of the path (filename visible), trim from start
+      local ellipsis = "..."
+      local chars_to_keep = available_for_path - #ellipsis
+      if chars_to_keep > 0 then
+        display_path = ellipsis .. display_path:sub(-chars_to_keep)
+      else
+        display_path = display_path:sub(-available_for_path)
+      end
     end
+    
     line:append(display_path, "Normal")
     
-    -- Add status symbol at the end
-    local padding = string.rep(" ", math.max(1, 45 - #display_path))
-    line:append(padding)
-    line:append(data.status_symbol or "", data.status_color or "Normal")
+    -- Add padding to push status symbol to the right edge
+    local padding_needed = available_for_path - #display_path + 2
+    if padding_needed > 0 then
+      line:append(string.rep(" ", padding_needed))
+    end
+    line:append(status_symbol, data.status_color or "Normal")
   end
 
   return line
@@ -100,8 +122,8 @@ end
 
 -- Create and show explorer
 function M.create(status_result, git_root, tabpage, width)
-  -- Use provided width or default to 30 columns
-  local explorer_width = width or 30
+  -- Use provided width or default to 40 columns (same as neo-tree)
+  local explorer_width = width or 40
   
   -- File selection callback - manages its own lifecycle
   local function on_file_select(file_data)
@@ -190,7 +212,9 @@ function M.create(status_result, git_root, tabpage, width)
   local tree = Tree({
     bufnr = split.bufnr,
     nodes = tree_data,
-    prepare_node = prepare_node,
+    prepare_node = function(node)
+      return prepare_node(node, explorer_width)
+    end,
   })
 
   -- Expand all groups by default before first render
