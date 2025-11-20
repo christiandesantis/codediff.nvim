@@ -70,13 +70,19 @@ function M.setup()
       git.get_file_content(commit, git_root, filepath, function(err, lines)
         vim.schedule(function()
           if err then
-            -- Set error message in buffer
-            api.nvim_buf_set_lines(buf, 0, -1, false, {
-              'Error reading from git:',
-              err
-            })
+            -- File doesn't exist in this revision (added/deleted file)
+            -- Show empty buffer so diff can highlight the change
+            api.nvim_buf_set_lines(buf, 0, -1, false, {""})
             vim.bo[buf].modifiable = false
             vim.bo[buf].readonly = true
+            vim.bo[buf].filetype = ""
+            vim.diagnostic.enable(false, { bufnr = buf })
+            
+            -- Fire loaded event so diff rendering proceeds
+            api.nvim_exec_autocmds('User', {
+              pattern = 'VscodeDiffVirtualFileLoaded',
+              data = { buf = buf }
+            })
             return
           end
 

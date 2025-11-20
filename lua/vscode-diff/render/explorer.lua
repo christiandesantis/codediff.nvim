@@ -35,6 +35,7 @@ local function create_file_nodes(files, git_root, group)
       data = {
         path = file.path,
         status = file.status,
+        old_path = file.old_path,  -- For renames: original path before rename
         icon = icon,
         icon_color = icon_color,
         status_symbol = status_info.symbol,
@@ -149,6 +150,7 @@ function M.create(status_result, git_root, tabpage, width)
     local lifecycle = require('vscode-diff.render.lifecycle')
     
     local file_path = file_data.path
+    local old_path = file_data.old_path  -- For renames: path in HEAD
     local abs_path = git_root .. "/" .. file_path
     local group = file_data.group or "unstaged"
 
@@ -182,14 +184,15 @@ function M.create(status_result, git_root, tabpage, width)
 
       if group == "staged" then
         -- Staged changes: Compare staged (:0) vs HEAD (both virtual)
+        -- For renames: old_path in HEAD, new path in staging
         -- No pre-fetching needed, virtual files will load via BufReadCmd
         vim.schedule(function()
           ---@type SessionConfig
           local session_config = {
             mode = "explorer",
             git_root = git_root,
-            original_path = file_path,
-            modified_path = file_path,
+            original_path = old_path or file_path,  -- Use old_path if rename
+            modified_path = file_path,              -- New path after rename
             original_revision = commit_hash,
             modified_revision = ":0",
           }

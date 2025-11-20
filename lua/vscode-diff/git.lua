@@ -255,7 +255,7 @@ end
 -- }
 function M.get_status(git_root, callback)
   run_git_async(
-    { "status", "--porcelain", "-uall" },
+    { "status", "--porcelain", "-uall", "-M" },  -- -M to detect renames
     { cwd = git_root },
     function(err, output)
       if err then
@@ -272,13 +272,19 @@ function M.get_status(git_root, callback)
         if #line >= 3 then
           local index_status = line:sub(1, 1)
           local worktree_status = line:sub(2, 2)
-          local path = line:sub(4)
+          local path_part = line:sub(4)
+          
+          -- Handle renames: "old_path -> new_path"
+          local old_path, new_path = path_part:match("^(.+) %-> (.+)$")
+          local path = old_path and new_path or path_part  -- Use new_path for display if rename
+          local is_rename = old_path ~= nil
 
           -- Staged changes (index has changes)
           if index_status ~= " " and index_status ~= "?" then
             table.insert(result.staged, {
               path = path,
-              status = index_status
+              status = index_status,
+              old_path = is_rename and old_path or nil,  -- Store old path if rename
             })
           end
 
@@ -286,7 +292,8 @@ function M.get_status(git_root, callback)
           if worktree_status ~= " " then
             table.insert(result.unstaged, {
               path = path,
-              status = worktree_status == "?" and "??" or worktree_status
+              status = worktree_status == "?" and "??" or worktree_status,
+              old_path = is_rename and old_path or nil,
             })
           end
         end
