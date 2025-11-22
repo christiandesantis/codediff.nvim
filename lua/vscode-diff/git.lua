@@ -170,8 +170,14 @@ function M.get_git_root(file_path, callback)
         callback("Not in a git repository", nil)
       else
         local git_root = vim.trim(output)
+        -- Resolve full path to handle short paths/symlinks and normalize
+        git_root = vim.fn.fnamemodify(git_root, ":p")
         -- Ensure git_root uses forward slashes for consistency
         git_root = git_root:gsub("\\", "/")
+        -- Remove trailing slash if present (fnamemodify :p adds it on some systems)
+        if git_root:sub(-1) == "/" then
+          git_root = git_root:sub(1, -2)
+        end
         callback(nil, git_root)
       end
     end
