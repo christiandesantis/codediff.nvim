@@ -9,6 +9,7 @@ A Neovim plugin that provides VSCode-style side-by-side diff rendering with two-
   - Deep/dark character-level highlights showing exact changes within lines
 - **Side-by-side diff view** in a new tab with synchronized scrolling
 - **Git integration**: Compare between any git revision (HEAD, commits, branches, tags)
+- **Same implementation as VSCode's diff engine**, providing identical visual highlighting for most scenarios
 - **Fast C-based diff computation** using FFI with **multi-core parallelization** (OpenMP)
 - **Async git operations** - non-blocking file retrieval from git
 
@@ -25,36 +26,46 @@ A Neovim plugin that provides VSCode-style side-by-side diff rendering with two-
 
 ### Using lazy.nvim
 
-**Simple installation (all platforms):**
+**Minimal installation:**
 ```lua
 {
   "esmuellert/vscode-diff.nvim",
-  dependencies = {
-    "MunifTanjim/nui.nvim",
-  },
+  dependencies = { "MunifTanjim/nui.nvim" },
+}
+```
+
+**With custom configuration:**
+```lua
+{
+  "esmuellert/vscode-diff.nvim",
+  dependencies = { "MunifTanjim/nui.nvim" },
   config = function()
-    require("vscode-diff.config").setup({
-      -- Optional configuration (defaults shown)
+    require("vscode-diff").setup({
+      -- Highlight configuration
       highlights = {
-        line_insert = "DiffAdd",
-        line_delete = "DiffDelete",
-        char_brightness = 1.4,
+        line_insert = "DiffAdd",      -- Base highlight group for inserted lines
+        line_delete = "DiffDelete",   -- Base highlight group for deleted lines
+        char_brightness = 1.4,        -- Multiplier for character-level highlights (brighter)
       },
+      
+      -- Diff view behavior
       diff = {
-        disable_inlay_hints = true,
-        max_computation_time_ms = 5000,
+        disable_inlay_hints = true,         -- Disable inlay hints in diff windows for cleaner view
+        max_computation_time_ms = 5000,     -- Maximum time for diff computation (VSCode default)
       },
+      
+      -- Keymaps in diff view
       keymaps = {
         view = {
-          next_hunk = "]c",
-          prev_hunk = "[c",
-          next_file = "]f",
-          prev_file = "[f",
+          next_hunk = "]c",   -- Jump to next change
+          prev_hunk = "[c",   -- Jump to previous change
+          next_file = "]f",   -- Next file in explorer mode
+          prev_file = "[f",   -- Previous file in explorer mode
         },
         explorer = {
-          select = "<CR>",
-          hover = "K",
-          refresh = "R",
+          select = "<CR>",    -- Open diff for selected file
+          hover = "K",        -- Show file diff preview
+          refresh = "R",      -- Refresh git status
         },
       },
     })
@@ -63,46 +74,6 @@ A Neovim plugin that provides VSCode-style side-by-side diff rendering with two-
 ```
 
 The C library will be downloaded automatically on first use. No `build` step needed!
-
-### Manual Installation
-
-1. Clone the repository:
-```bash
-git clone https://github.com/esmuellert/vscode-diff.nvim ~/.local/share/nvim/vscode-diff.nvim
-```
-
-2. Add to your Neovim runtime path in `init.lua`:
-```lua
-vim.opt.rtp:append("~/.local/share/nvim/vscode-diff.nvim")
-```
-
-The C library will be downloaded automatically on first use.
-
-### Building from Source (Optional)
-
-If you prefer to build the C library yourself instead of using pre-built binaries:
-
-**Linux/macOS/BSD:**
-```bash
-cd ~/.local/share/nvim/vscode-diff.nvim
-make clean && make
-```
-
-**Windows:**
-```cmd
-REM Option 1: Standalone build (no CMake needed, auto-detects MSVC/MinGW/Clang)
-build.cmd
-
-REM Option 2: CMake with Visual Studio
-cmake -B build && cmake --build build
-
-REM Option 3: CMake with MinGW
-cmake -B build -G "MinGW Makefiles" && cmake --build build
-```
-
-**Build requirements:**
-- **Linux/macOS/BSD**: GCC/Clang and Make
-- **Windows**: Visual Studio (MSVC), MinGW-w64 (GCC), or CMake
 
 ### Managing Library Installation
 
@@ -124,6 +95,50 @@ The plugin automatically manages the C library installation:
 
 **Version Management:**
 The installer reads the `VERSION` file to download the matching library version from GitHub releases. This ensures compatibility between the Lua code and C library.
+
+### Manual Installation
+
+1. Clone the repository:
+```bash
+git clone https://github.com/esmuellert/vscode-diff.nvim ~/.local/share/nvim/vscode-diff.nvim
+```
+
+2. Add to your Neovim runtime path in `init.lua`:
+```lua
+vim.opt.rtp:append("~/.local/share/nvim/vscode-diff.nvim")
+```
+
+The C library will be downloaded automatically on first use.
+
+### Building from Source (Optional)
+
+If you prefer to build the C library yourself instead of using pre-built binaries:
+
+**Build requirements:**
+- **Option 1 (build.sh/build.cmd)**: C compiler (GCC/Clang/MSVC/MinGW) - auto-detected
+- **Option 2 (CMake)**: CMake 3.15+ and C compiler
+
+**Option 1: Ready-to-use build scripts (no CMake required)**
+
+Linux/macOS/BSD:
+```bash
+cd ~/.local/share/nvim/vscode-diff.nvim
+./build.sh
+```
+
+Windows:
+```cmd
+cd %LOCALAPPDATA%\nvim-data\lazy\vscode-diff.nvim
+build.cmd
+```
+
+**Option 2: CMake (for advanced users)**
+
+All platforms:
+```bash
+cmake -B build
+cmake --build build
+```
 
 ## Usage
 
