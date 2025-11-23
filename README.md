@@ -1,8 +1,6 @@
 # vscode-diff.nvim
 
-> **⚠️ WORK IN PROGRESS**: This plugin is under active development and not ready for production use.
-
-A Neovim plugin that provides VSCode-style inline diff rendering with two-tier highlighting.
+A Neovim plugin that provides VSCode-style side-by-side diff rendering with two-tier highlighting.
 
 ## Features
 
@@ -10,11 +8,9 @@ A Neovim plugin that provides VSCode-style inline diff rendering with two-tier h
   - Light backgrounds for entire modified lines (green for insertions, red for deletions)
   - Deep/dark character-level highlights showing exact changes within lines
 - **Side-by-side diff view** in a new tab with synchronized scrolling
-- **Git integration**: Compare current buffer with any git revision (HEAD, commits, branches, tags)
+- **Git integration**: Compare between any git revision (HEAD, commits, branches, tags)
 - **Fast C-based diff computation** using FFI with **multi-core parallelization** (OpenMP)
 - **Async git operations** - non-blocking file retrieval from git
-- **Read-only buffers** to prevent accidental edits
-- **Aligned line rendering** with virtual filler lines
 
 ## Installation
 
