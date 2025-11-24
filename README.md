@@ -300,6 +300,8 @@ The plugin handles syntax highlighting differently based on buffer type:
 
 ### Highlight Groups
 
+<img width="1920" height="1440" alt="921_1x_shots_so" src="https://github.com/user-attachments/assets/760fa8be-dba7-4eb5-b71b-c53fb3aa6edf" />
+
 The plugin defines highlight groups matching VSCode's diff colors:
 
 - `CodeDiffLineInsert` - Light green background for inserted lines
