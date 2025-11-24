@@ -214,6 +214,10 @@ local function resume_diff(tabpage)
         vim.wo[diff.modified_win].scrollbind = false
         vim.wo[diff.original_win].scrollbind = true
         vim.wo[diff.modified_win].scrollbind = true
+        
+        -- Re-apply critical window options that might have been reset
+        vim.wo[diff.original_win].wrap = false
+        vim.wo[diff.modified_win].wrap = false
 
         -- Step 4: Restore cursor position with both line and column
         pcall(vim.api.nvim_win_set_cursor, diff.original_win, saved_cursor)
@@ -332,6 +336,8 @@ function M.create_session(tabpage, mode, git_root, original_path, modified_path,
       local win = vim.api.nvim_get_current_win()
       if win == original_win or win == modified_win then
         ensure_no_winbar()
+        -- Re-apply critical window options that might get reset by ftplugins/autocmds
+        vim.wo[win].wrap = false
       end
     end,
   })

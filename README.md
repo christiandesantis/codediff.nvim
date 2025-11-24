@@ -2,7 +2,11 @@
 
 A Neovim plugin that provides VSCode-style side-by-side diff rendering with two-tier highlighting.
 
-<img width="1920" height="1440" alt="823shots_so" src="https://github.com/user-attachments/assets/473ae319-40ac-40e4-958b-a0f2525d1f94" />
+<div align="center">
+
+![VSCode-style diff view showing side-by-side comparison with two-tier highlighting](https://github.com/user-attachments/assets/473ae319-40ac-40e4-958b-a0f2525d1f94)
+
+</div>
 
 ## Features
 
@@ -303,6 +307,25 @@ The plugin defines highlight groups matching VSCode's diff colors:
 - `CodeDiffCharInsert` - Deep/dark green for inserted characters
 - `CodeDiffCharDelete` - Deep/dark red for deleted characters
 - `CodeDiffFiller` - Gray foreground for filler line slashes (`╱╱╱`)
+
+<details open>
+<summary><b>📸 Visual Examples</b> (click to collapse)</summary>
+
+<br>
+
+**Dawnfox Light** - Default configuration with auto-detected brightness (`char_brightness = 0.92` for light themes):
+
+![Dawnfox Light theme with default auto color selection](https://github.com/user-attachments/assets/760fa8be-dba7-4eb5-b71b-c53fb3aa6edf)
+
+**Catppuccin Mocha** - Default configuration with auto-detected brightness (`char_brightness = 1.4` for dark themes):
+
+![Catppuccin Mocha theme with default auto color selection](https://github.com/user-attachments/assets/0187ff6c-9a2b-45dc-b9be-c15fd2a796d9)
+
+**Kanagawa Lotus** - Default configuration with auto-detected brightness (`char_brightness = 0.92` for light themes):
+
+![Kanagawa Lotus theme with default auto color selection](https://github.com/user-attachments/assets/9e4a0e1c-0ebf-47c8-a8b5-f8a0966c5592)
+
+</details>
 
 **Default behavior:**
 - Uses your colorscheme's `DiffAdd` and `DiffDelete` for line-level highlights

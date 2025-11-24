@@ -112,6 +112,10 @@ local function compute_and_render(original_buf, modified_buf, original_lines, mo
     vim.wo[original_win].scrollbind = true
     vim.wo[modified_win].scrollbind = true
     
+    -- Re-apply critical window options that might have been reset
+    vim.wo[original_win].wrap = false
+    vim.wo[modified_win].wrap = false
+    
     -- Step 3a: On create, scroll to first change
     if auto_scroll_to_first_hunk and #lines_diff.changes > 0 then
       local first_change = lines_diff.changes[1]
@@ -153,28 +157,35 @@ local function setup_hunk_navigation_keymaps(tabpage, original_bufnr, modified_b
     if not session or not session.stored_diff_result then
       return
     end
-    
+
     local diff_result = session.stored_diff_result
     if #diff_result.changes == 0 then
       return
     end
-    
+
+    -- Determine which buffer we're in
+    local current_buf = vim.api.nvim_get_current_buf()
+    local is_original = current_buf == original_bufnr
+
     -- Get current cursor position
     local cursor = vim.api.nvim_win_get_cursor(0)
     local current_line = cursor[1]
-    
+
     -- Find next hunk after current line
-    for _, mapping in ipairs(diff_result.changes) do
-      local target_line = mapping.original.start_line
+    for i, mapping in ipairs(diff_result.changes) do
+      local target_line = is_original and mapping.original.start_line or mapping.modified.start_line
       if target_line > current_line then
         pcall(vim.api.nvim_win_set_cursor, 0, {target_line, 0})
+        vim.api.nvim_echo({{string.format('Hunk %d of %d', i, #diff_result.changes), 'None'}}, false, {})
         return
       end
     end
-    
+
     -- Wrap around to first hunk
     local first_hunk = diff_result.changes[1]
-    pcall(vim.api.nvim_win_set_cursor, 0, {first_hunk.original.start_line, 0})
+    local target_line = is_original and first_hunk.original.start_line or first_hunk.modified.start_line
+    pcall(vim.api.nvim_win_set_cursor, 0, {target_line, 0})
+    vim.api.nvim_echo({{string.format('Hunk 1 of %d', #diff_result.changes), 'None'}}, false, {})
   end
   
   local function navigate_prev_hunk()
@@ -182,29 +193,36 @@ local function setup_hunk_navigation_keymaps(tabpage, original_bufnr, modified_b
     if not session or not session.stored_diff_result then
       return
     end
-    
+
     local diff_result = session.stored_diff_result
     if #diff_result.changes == 0 then
       return
     end
-    
+
+    -- Determine which buffer we're in
+    local current_buf = vim.api.nvim_get_current_buf()
+    local is_original = current_buf == original_bufnr
+
     -- Get current cursor position
     local cursor = vim.api.nvim_win_get_cursor(0)
     local current_line = cursor[1]
-    
+
     -- Find previous hunk before current line (search backwards)
     for i = #diff_result.changes, 1, -1 do
       local mapping = diff_result.changes[i]
-      local target_line = mapping.original.start_line
+      local target_line = is_original and mapping.original.start_line or mapping.modified.start_line
       if target_line < current_line then
         pcall(vim.api.nvim_win_set_cursor, 0, {target_line, 0})
+        vim.api.nvim_echo({{string.format('Hunk %d of %d', i, #diff_result.changes), 'None'}}, false, {})
         return
       end
     end
-    
+
     -- Wrap around to last hunk
     local last_hunk = diff_result.changes[#diff_result.changes]
-    pcall(vim.api.nvim_win_set_cursor, 0, {last_hunk.original.start_line, 0})
+    local target_line = is_original and last_hunk.original.start_line or last_hunk.modified.start_line
+    pcall(vim.api.nvim_win_set_cursor, 0, {target_line, 0})
+    vim.api.nvim_echo({{string.format('Hunk %d of %d', #diff_result.changes, #diff_result.changes), 'None'}}, false, {})
   end
   
   local map_opts = { noremap = true, silent = true, nowait = true }
