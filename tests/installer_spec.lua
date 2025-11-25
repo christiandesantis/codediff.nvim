@@ -30,14 +30,14 @@ describe("Installer Module", function()
   end)
 
   -- Test 4: get_lib_path returns correct format
-  it("get_lib_path returns versioned path", function()
+  it("get_lib_path returns valid library path", function()
     local lib_path = installer.get_lib_path()
     assert.is_not_nil(lib_path, "Library path should not be nil")
     assert.equal("string", type(lib_path), "Library path should be a string")
     
-    -- Should contain version in filename
-    assert.is_true(lib_path:find(version.VERSION, 1, true) ~= nil, 
-      "Library path should contain VERSION: " .. version.VERSION)
+    -- Should contain libvscode_diff in the filename
+    assert.is_true(lib_path:match("libvscode_diff") ~= nil, 
+      "Library filename should contain 'libvscode_diff'")
     
     -- Should have correct extension based on OS
     local ffi = require("ffi")
@@ -50,8 +50,8 @@ describe("Installer Module", function()
     end
   end)
 
-  -- Test 5: is_installed checks for versioned file
-  it("is_installed checks for correct versioned file", function()
+  -- Test 5: is_installed checks for library file
+  it("is_installed checks for library file", function()
     local installed = installer.is_installed()
     assert.equal("boolean", type(installed), "is_installed should return boolean")
     
@@ -73,11 +73,9 @@ describe("Installer Module", function()
       -- Should match semantic version format
       assert.is_true(installed_version:match("^%d+%.%d+%.%d+$") ~= nil, 
         "Installed version should match semantic version format")
-    else
-      -- If no version found, is_installed should also be false
-      assert.is_false(installer.is_installed(), 
-        "If no installed version, is_installed should be false")
     end
+    -- Note: We can't assert is_installed() is false if installed_version is nil,
+    -- because we might have an unversioned manual build.
   end)
 
   -- Test 7: needs_update logic
@@ -87,8 +85,15 @@ describe("Installer Module", function()
     
     local installed_version = installer.get_installed_version()
     local current_version = version.VERSION
+    local lib_path = installer.get_lib_path()
     
-    if not installed_version then
+    -- Check if we are using unversioned library
+    local is_unversioned = lib_path and not lib_path:match(version.VERSION)
+    
+    if is_unversioned then
+      -- Manual build is assumed to be up-to-date
+      assert.is_false(needs_update, "Should not need update when using manual build")
+    elseif not installed_version then
       -- No version installed, should need update
       assert.is_true(needs_update, "Should need update when no version is installed")
     elseif installed_version ~= current_version then
@@ -139,5 +144,61 @@ describe("Installer Module", function()
     -- Should contain libvscode_diff in the filename
     assert.is_true(lib_path:match("libvscode_diff") ~= nil, 
       "Library filename should contain 'libvscode_diff'")
+  end)
+
+  -- Test 11: Priority of unversioned library (manual build)
+  it("Prioritizes unversioned library over versioned one", function()
+    local lib_path_initial = installer.get_lib_path()
+    if not lib_path_initial then
+       -- If nothing installed, we can't easily determine plugin root without internal access
+       -- But usually tests run with something installed.
+       -- Let's try to get plugin root from debug info like the module does
+       local source = debug.getinfo(1).source:sub(2)
+       local plugin_root = vim.fn.fnamemodify(source, ":h:h:h")
+       
+       -- Continue with test...
+    end
+    
+    local plugin_root = lib_path_initial and lib_path_initial:match("(.*/)") or vim.fn.fnamemodify(debug.getinfo(1).source:sub(2), ":h:h:h") .. "/"
+    local ext = require("ffi").os == "Windows" and "dll" or (require("ffi").os == "OSX" and "dylib" or "so")
+    local unversioned_name = "libvscode_diff." .. ext
+    local unversioned_path = plugin_root .. unversioned_name
+    
+    local created_dummy = false
+    
+    -- If unversioned library doesn't exist, create a dummy one
+    -- If it DOES exist (e.g. Windows CI build), use it but don't overwrite/delete it (it might be locked)
+    if vim.fn.filereadable(unversioned_path) == 0 then
+      local f = io.open(unversioned_path, "w")
+      if f then
+        f:write("dummy content")
+        f:close()
+        created_dummy = true
+      else
+        -- If we can't create it, we can't run this test fully, but shouldn't fail if it's just permissions
+        print("WARNING: Could not create dummy unversioned library, skipping creation")
+      end
+    end
+    
+    -- Verify it is prioritized
+    local lib_path = installer.get_lib_path()
+    -- Normalize paths for comparison (Windows might have mixed slashes)
+    local normalized_lib_path = lib_path:gsub("\\", "/")
+    local normalized_unversioned_path = unversioned_path:gsub("\\", "/")
+    
+    assert.equal(normalized_unversioned_path, normalized_lib_path, "Should prioritize unversioned library")
+    assert.is_true(installer.is_installed(), "Should be considered installed")
+    assert.is_false(installer.needs_update(), "Should not need update")
+    
+    -- Cleanup only if we created it
+    if created_dummy then
+      os.remove(unversioned_path)
+      
+      -- Verify it falls back to versioned (or nil if none)
+      local fallback_path = installer.get_lib_path()
+      if fallback_path then
+        assert.not_equal(unversioned_path, fallback_path, "Should fall back to versioned library")
+      end
+    end
   end)
 end)
