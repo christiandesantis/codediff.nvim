@@ -55,12 +55,17 @@ if(NOT WIN32)
     add_definitions(-D_POSIX_C_SOURCE=200809L)
 endif()
 
+# Option to disable OpenMP (for testing or compatibility)
+option(ENABLE_OPENMP "Enable OpenMP for parallel character-level diff" ON)
+
 # Find OpenMP for parallelization
-find_package(OpenMP)
+if(ENABLE_OPENMP)
+    find_package(OpenMP)
+endif()
 
 # On macOS, CMake's FindOpenMP doesn't detect Homebrew's libomp
 # Try to find it manually if standard detection fails
-if(NOT OpenMP_C_FOUND AND APPLE)
+if(ENABLE_OPENMP AND NOT OpenMP_C_FOUND AND APPLE)
     # Try to find Homebrew's libomp
     execute_process(
         COMMAND brew --prefix libomp

@@ -26,6 +26,8 @@ BASE_REF="origin/main"
 VERBOSITY=1
 # Sort mode: frequency (default) or size
 SORT_MODE="frequency"
+# OpenMP: enabled by default
+ENABLE_OPENMP=ON
 
 # Parse command line arguments
 while [[ $# -gt 0 ]]; do
@@ -42,6 +44,10 @@ while [[ $# -gt 0 ]]; do
             SORT_MODE="size"
             shift
             ;;
+        --no-openmp)
+            ENABLE_OPENMP=OFF
+            shift
+            ;;
         -h|--help)
             echo "Usage: $0 [OPTIONS] [REPO_PATH]"
             echo ""
@@ -51,6 +57,7 @@ while [[ $# -gt 0 ]]; do
             echo "  (no options)     Normal mode: show progress and summary"
             echo "  -v, --verbose    Verbose mode: show all details and performance"
             echo "  -s, --size       Sort files by size (default: sort by revision frequency)"
+            echo "  --no-openmp      Disable OpenMP (build with sequential diff)"
             echo "  -h, --help       Show this help message"
             echo ""
             echo "Arguments:"
@@ -98,14 +105,17 @@ mkdir -p "$TEMP_DIR"
 
 # Always rebuild C diff binary to ensure latest changes
 if [ $VERBOSITY -ge 1 ]; then
-    echo "Building C diff binary with clean build..."
+    if [ "$ENABLE_OPENMP" = "OFF" ]; then
+        echo "Building C diff binary with clean build (OpenMP disabled)..."
+    else
+        echo "Building C diff binary with clean build..."
+    fi
 fi
 cd "$TOOL_REPO_ROOT"
-# Remove old binary and object files to force rebuild
-rm -f build/libvscode-diff/diff
-find build/libvscode-diff/CMakeFiles/diff.dir -name "*.o" -delete 2>/dev/null || true
-# Reconfigure if needed and build
-cmake -B build > /dev/null 2>&1
+# Clean build directory to ensure OpenMP setting takes effect
+make clean > /dev/null 2>&1
+# Configure and build
+cmake -B build -DENABLE_OPENMP=$ENABLE_OPENMP > /dev/null 2>&1
 cmake --build build --target diff > /dev/null 2>&1
 if [ ! -f "$C_DIFF" ]; then
     echo "Error: Failed to build C diff binary" >&2
