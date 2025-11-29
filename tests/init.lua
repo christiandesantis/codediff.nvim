@@ -44,6 +44,9 @@ if vim.fn.isdirectory(nui_dir) == 0 then
   })
 end
 vim.opt.rtp:prepend(nui_dir)
+-- Also add to package.path for direct requires
+nui_dir = nui_dir:gsub("\\", "/")
+package.path = package.path .. ";" .. nui_dir .. "/lua/?.lua;" .. nui_dir .. "/lua/?/init.lua"
 
 -- Load plugin files (for integration tests that need commands)
 vim.cmd('runtime! plugin/*.lua plugin/*.vim')
