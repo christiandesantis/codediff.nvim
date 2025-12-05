@@ -321,7 +321,7 @@ function M.create(status_result, git_root, tabpage, width, base_revision, target
           view.update(tabpage, session_config, true)
         end)
       elseif group == "conflicts" then
-        -- Merge conflict: Show incoming (:3:) vs current (:2:), both diffed against base (:1:)
+        -- Merge conflict: Show incoming (:3) vs current (:2), both diffed against base (:1)
         vim.schedule(function()
           ---@type SessionConfig
           local session_config = {
@@ -329,8 +329,8 @@ function M.create(status_result, git_root, tabpage, width, base_revision, target
             git_root = git_root,
             original_path = file_path,
             modified_path = file_path,
-            original_revision = ":3:",  -- Theirs/Incoming (left buffer)
-            modified_revision = ":2:",  -- Ours/Current (right buffer)
+            original_revision = ":3",  -- Theirs/Incoming (left buffer)
+            modified_revision = ":2",  -- Ours/Current (right buffer)
             conflict = true,
           }
           view.update(tabpage, session_config, true)

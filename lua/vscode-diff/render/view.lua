@@ -759,7 +759,7 @@ function M.update(tabpage, session_config, auto_scroll_to_first_hunk)
     if session_config.conflict then
       -- Conflict mode: Fetch base content and render both sides against base
       local git = require('vscode-diff.git')
-      local base_revision = ":1:"
+      local base_revision = ":1"
       
       git.get_file_content(base_revision, session_config.git_root, session_config.original_path, function(err, base_lines)
         if err then
