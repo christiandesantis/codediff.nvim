@@ -315,6 +315,10 @@ local function setup_all_keymaps(tabpage, original_bufnr, modified_bufnr, is_exp
 
   -- Helper: Quit diff view
   local function quit_diff()
+    -- Check for unsaved conflict files before closing
+    if not lifecycle.confirm_close_with_unsaved(tabpage) then
+      return  -- User cancelled
+    end
     vim.cmd('tabclose')
   end
 
@@ -641,6 +645,15 @@ function M.update(tabpage, session_config, auto_scroll_to_first_hunk)
   lifecycle.clear_highlights(old_original_buf)
   lifecycle.clear_highlights(old_modified_buf)
 
+  -- Handle result window when switching between conflict and non-conflict modes
+  local old_result_bufnr, old_result_win = lifecycle.get_result(tabpage)
+  if not session_config.conflict and old_result_win and vim.api.nvim_win_is_valid(old_result_win) then
+    -- Switching to non-conflict mode: close the result window
+    -- The buffer remains (real file), just close the window
+    vim.api.nvim_win_close(old_result_win, false)
+    lifecycle.set_result(tabpage, nil, nil)
+  end
+
   -- Determine if new buffers are virtual
   local original_is_virtual = is_virtual_revision(session_config.original_revision)
   local modified_is_virtual = is_virtual_revision(session_config.modified_revision)
@@ -795,9 +808,81 @@ function M.update(tabpage, session_config, auto_scroll_to_first_hunk)
             -- Setup auto-refresh for consistency (both buffers are virtual in conflict mode)
             setup_auto_refresh(original_info.bufnr, modified_info.bufnr, true, true)
 
-            -- Setup all keymaps in one place (centralized)
+            -- ============================================================
+            -- Create result window at bottom with real file reset to BASE
+            -- ============================================================
+            local abs_path = session_config.git_root .. "/" .. session_config.original_path
+
+            -- Check if result window already exists
+            local existing_result_bufnr, existing_result_win = lifecycle.get_result(tabpage)
+            local result_win, result_bufnr
+
+            if existing_result_win and vim.api.nvim_win_is_valid(existing_result_win) then
+              -- Reuse existing result window
+              result_win = existing_result_win
+              vim.api.nvim_set_current_win(result_win)
+            else
+              -- Create layout: [explorer, [[original, modified], result]]
+              -- Current layout: [explorer, original, modified]
+              -- Strategy:
+              -- 1. Create split below modified
+              -- 2. Move original to be vsplit with modified (left of it)
+              -- This reorganizes to: [explorer, [[original, modified], result]]
+              
+              if vim.api.nvim_win_is_valid(modified_win) then
+                vim.api.nvim_set_current_win(modified_win)
+              end
+              vim.cmd("belowright split")
+              result_win = vim.api.nvim_get_current_win()
+              
+              -- Move original window to be a vertical split with modified
+              vim.fn.win_splitmove(original_win, modified_win, { vertical = true, rightbelow = false })
+
+              -- Set result window height (30% of available height or minimum 10 lines)
+              local total_height = vim.o.lines
+              local result_height = math.max(10, math.floor(total_height * 0.3))
+              vim.api.nvim_win_set_height(result_win, result_height)
+            end
+
+            -- Load real file buffer in result window
+            vim.cmd("edit " .. vim.fn.fnameescape(abs_path))
+            result_bufnr = vim.api.nvim_get_current_buf()
+
+            -- Reset buffer content to BASE (only if buffer has conflict markers)
+            local current_content = vim.api.nvim_buf_get_lines(result_bufnr, 0, -1, false)
+            local has_conflict_markers = false
+            for _, line in ipairs(current_content) do
+              if line:match("^<<<<<<<") or line:match("^=======") or line:match("^>>>>>>>") then
+                has_conflict_markers = true
+                break
+              end
+            end
+
+            if has_conflict_markers then
+              -- Reset to BASE content
+              vim.api.nvim_buf_set_lines(result_bufnr, 0, -1, false, base_lines)
+              vim.bo[result_bufnr].modified = true  -- Mark as modified since we changed content
+            end
+
+            -- Set window options for result
+            vim.wo[result_win].wrap = false
+            vim.wo[result_win].cursorline = true
+            vim.wo[result_win].winbar = ""
+
+            -- Update lifecycle with result buffer/window
+            lifecycle.set_result(tabpage, result_bufnr, result_win)
+
+            -- Track this file for unsaved warning on close
+            lifecycle.track_conflict_file(tabpage, abs_path)
+
+            -- Setup all keymaps (now that result buffer is registered in lifecycle)
             local is_explorer_mode = session.mode == "explorer"
             setup_all_keymaps(tabpage, original_info.bufnr, modified_info.bufnr, is_explorer_mode)
+
+            -- Return focus to modified window (current/ours side)
+            if vim.api.nvim_win_is_valid(modified_win) then
+              vim.api.nvim_set_current_win(modified_win)
+            end
           end
         end)
       end)
