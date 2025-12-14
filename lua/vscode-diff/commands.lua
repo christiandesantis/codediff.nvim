@@ -228,10 +228,10 @@ function M.vscode_merge(opts)
 
     local relative_path = git.get_relative_path(full_path, git_root)
     
-    -- Determine filetype
-    local filetype = vim.filetype.match({ filename = full_path }) or ""
-
     vim.schedule(function()
+      -- Determine filetype (must be in scheduled callback)
+      local filetype = vim.filetype.match({ filename = full_path }) or ""
+
       local view = require('vscode-diff.render.view')
       ---@type SessionConfig
       local session_config = {
