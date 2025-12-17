@@ -168,14 +168,27 @@ end
 
 -- Create and show explorer
 function M.create(status_result, git_root, tabpage, width, base_revision, target_revision)
-  -- Use provided width or default to 40 columns (same as neo-tree)
-  local explorer_width = width or 40
-  
+  -- Get explorer position and size from config
+  local explorer_config = config.options.explorer or {}
+  local position = explorer_config.position or "left"
+  local size
+  local text_width  -- Width for text rendering (always horizontal width)
+
+  if position == "bottom" then
+    size = explorer_config.height or 15
+    -- For bottom position, use full window width for text
+    text_width = vim.o.columns
+  else
+    -- Use provided width or config width or default to 40 columns
+    size = width or explorer_config.width or 40
+    text_width = size
+  end
+
   -- Create split window for explorer
   local split = Split({
     relative = "editor",
-    position = "left",
-    size = explorer_width,
+    position = position,
+    size = size,
     buf_options = {
       modifiable = false,
       readonly = true,
@@ -204,7 +217,7 @@ function M.create(status_result, git_root, tabpage, width, base_revision, target
     bufnr = split.bufnr,
     nodes = tree_data,
     prepare_node = function(node)
-      return prepare_node(node, explorer_width, selected_path, selected_group)
+      return prepare_node(node, text_width, selected_path, selected_group)
     end,
   })
 
