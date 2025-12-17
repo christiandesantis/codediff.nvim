@@ -38,6 +38,10 @@ end
 function M.create_temp_dir()
   local temp_dir = vim.fn.tempname()
   vim.fn.mkdir(temp_dir, "p")
+  -- On Windows, normalize to forward slashes for consistency
+  if M.is_windows then
+    temp_dir = temp_dir:gsub("\\", "/")
+  end
   return temp_dir
 end
 

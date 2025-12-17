@@ -107,8 +107,16 @@ function M.create_url(git_root, commit, filepath)
   local encoded_commit = commit or 'HEAD'
   local encoded_path = filepath:gsub('^/', '')
   
-  return string.format('vscodediff:///%s///%s/%s', 
+  local url = string.format('vscodediff:///%s///%s/%s', 
     encoded_root, encoded_commit, encoded_path)
+  
+  -- Debug: log URL creation on Windows CI
+  if vim.fn.has('win32') == 1 and os.getenv('CI') then
+    print(string.format('DEBUG create_url: root=%s commit=%s path=%s -> %s', 
+      git_root, commit or 'nil', filepath, url))
+  end
+  
+  return url
 end
 
 -- Parse a vscodediff:// URL
