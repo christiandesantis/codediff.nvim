@@ -84,7 +84,17 @@ end
 -- Supports commit hash or :0 (staged index)
 function M.create_url(git_root, commit, filepath)
   -- Normalize and encode components
+  -- Use :p to get full path, then resolve to long path name on Windows
+  -- to avoid 8.3 short name inconsistencies (e.g., RUNNER~1 vs runneradmin)
   local encoded_root = vim.fn.fnamemodify(git_root, ':p')
+  -- On Windows, resolve short names to long names for consistency
+  if vim.fn.has('win32') == 1 then
+    -- Use resolve() to get canonical path (handles symlinks and short names)
+    local resolved = vim.fn.resolve(encoded_root)
+    if resolved and resolved ~= '' then
+      encoded_root = resolved
+    end
+  end
   -- Remove trailing slashes (both / and \)
   encoded_root = encoded_root:gsub('[/\\]$', '')
   -- Normalize to forward slashes
