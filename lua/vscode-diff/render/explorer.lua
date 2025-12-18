@@ -24,6 +24,12 @@ local function get_file_icon(path)
   return "", nil
 end
 
+-- Folder icon (nvim-web-devicons doesn't have folder icons, use nerd font icons)
+local function get_folder_icon(is_open)
+  -- Nerd Font: folder = e5ff, folder-open = e5fe
+  return is_open and "\u{e5fe}" or "\u{e5ff}", "Directory"
+end
+
 -- Create flat file nodes (list mode)
 local function create_file_nodes(files, git_root, group)
   local nodes = {}
@@ -179,15 +185,14 @@ local function prepare_node(node, max_width, selected_path, selected_group)
 
   if data.type == "group" then
     -- Group header
-    local icon = node:is_expanded() and "" or ""
-    line:append(icon .. " ", "Directory")
+    line:append(" ", "Directory")
     line:append(node.text, "Directory")
   elseif data.type == "directory" then
-    -- Directory node (tree view mode)
+    -- Directory node (tree view mode) - match file icon style
     local indent = string.rep("  ", node:get_depth() - 1)
-    local icon = node:is_expanded() and "" or ""
-    line:append(indent, "Normal")
-    line:append(icon .. " ", "Directory")
+    local folder_icon, folder_color = get_folder_icon(node:is_expanded())
+    line:append(indent, "Directory")
+    line:append(folder_icon .. " ", folder_color or "Directory")
     line:append(data.name, "Directory")
   else
     -- Match both path AND group to handle files in both staged and unstaged
@@ -830,6 +835,7 @@ local function get_all_files(tree)
   -- Recursively collect files from a node and its children
   local function collect_files(parent_node)
     if not parent_node:has_children() then return end
+    if not parent_node:is_expanded() then return end
     
     for _, child_id in ipairs(parent_node:get_child_ids()) do
       local node = tree:get_node(child_id)
