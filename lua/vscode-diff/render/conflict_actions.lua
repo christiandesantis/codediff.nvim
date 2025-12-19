@@ -187,20 +187,21 @@ function M.refresh_all_conflict_signs(session)
   local highlights = require('vscode-diff.render.highlights')
   local ns_conflict = highlights.ns_conflict
   
-  -- Helper to set signs for a buffer range
-  local function set_signs_for_range(bufnr, start_line, end_line, namespace, hl_group)
+  -- Helper to set signs for a buffer range (for non-empty ranges)
+  local function set_signs_for_range(bufnr, start_line, end_line, namespace, hl_group, is_active)
     if not bufnr or not vim.api.nvim_buf_is_valid(bufnr) then return end
     
     local line_count = vim.api.nvim_buf_line_count(bufnr)
     
     if start_line == end_line then
+      -- Empty range: show a top-aligned horizontal bar sign to indicate "something goes here"
       if start_line >= 0 and start_line < line_count then
         local marks = vim.api.nvim_buf_get_extmarks(bufnr, namespace, {start_line, 0}, {start_line, -1}, {})
         for _, mark in ipairs(marks) do
           vim.api.nvim_buf_del_extmark(bufnr, namespace, mark[1])
         end
         vim.api.nvim_buf_set_extmark(bufnr, namespace, start_line, 0, {
-          sign_text = "▌",
+          sign_text = "▔▔",  -- Upper block - appears at top of line, like between two lines
           sign_hl_group = hl_group,
           priority = 50,
         })
@@ -235,12 +236,12 @@ function M.refresh_all_conflict_signs(session)
     -- Update left buffer (incoming)
     local left_start = block.output1_range.start_line - 1
     local left_end = block.output1_range.end_line - 1
-    set_signs_for_range(session.original_bufnr, left_start, left_end, ns_conflict, hl_group)
+    set_signs_for_range(session.original_bufnr, left_start, left_end, ns_conflict, hl_group, is_active)
     
     -- Update right buffer (current)
     local right_start = block.output2_range.start_line - 1
     local right_end = block.output2_range.end_line - 1
-    set_signs_for_range(session.modified_bufnr, right_start, right_end, ns_conflict, hl_group)
+    set_signs_for_range(session.modified_bufnr, right_start, right_end, ns_conflict, hl_group, is_active)
     
     -- Update result buffer (use tracked extmark position)
     if session.result_bufnr and vim.api.nvim_buf_is_valid(session.result_bufnr) and block.extmark_id then
@@ -251,9 +252,10 @@ function M.refresh_all_conflict_signs(session)
         local line_count = vim.api.nvim_buf_line_count(session.result_bufnr)
         
         if result_start == result_end then
+          -- Empty conflict region: show a top-aligned horizontal bar sign
           if result_start >= 0 and result_start < line_count then
             vim.api.nvim_buf_set_extmark(session.result_bufnr, result_signs_ns, result_start, 0, {
-              sign_text = "▌",
+              sign_text = "▔▔",  -- Upper block - appears at top of line, like between two lines
               sign_hl_group = hl_group,
               priority = 50,
             })
