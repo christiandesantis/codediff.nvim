@@ -128,29 +128,79 @@ function M.setup()
     default = true,
   })
 
+  -- Helper to check if a highlight group exists and has foreground color
+  local function hl_exists(name)
+    local ok, hl = pcall(vim.api.nvim_get_hl, 0, { name = name, link = false })
+    return ok and hl and (hl.fg or hl.foreground)
+  end
+
+  -- Helper to set conflict sign highlight with user config as priority 0
+  -- @param hl_name string The highlight group name to set
+  -- @param user_value string|nil User config value (highlight group or hex color)
+  -- @param fallbacks table List of fallback highlight groups to try
+  -- @param default_hex string Default hex color if all fallbacks fail
+  local function set_conflict_sign_hl(hl_name, user_value, fallbacks, default_hex)
+    -- Priority 0: User config
+    if user_value then
+      if user_value:match("^#%x%x%x%x%x%x$") then
+        -- Hex color
+        vim.api.nvim_set_hl(0, hl_name, { fg = user_value, default = true })
+      else
+        -- Highlight group name
+        vim.api.nvim_set_hl(0, hl_name, { link = user_value, default = true })
+      end
+      return
+    end
+
+    -- Try fallback chain
+    for _, fallback in ipairs(fallbacks) do
+      if hl_exists(fallback) then
+        vim.api.nvim_set_hl(0, hl_name, { link = fallback, default = true })
+        return
+      end
+    end
+
+    -- Final fallback: hardcoded hex
+    vim.api.nvim_set_hl(0, hl_name, { fg = default_hex, default = true })
+  end
+
+  local hl_config = config.options.highlights
+
   -- Conflict sign in gutter (for merge view) - unresolved conflicts
-  vim.api.nvim_set_hl(0, "CodeDiffConflictSign", {
-    fg = "#f0883e",  -- Orange color for unhandled conflict indicator
-    default = true,
-  })
+  -- Fallback chain: user config -> DiagnosticSignWarn -> hardcoded orange
+  set_conflict_sign_hl(
+    "CodeDiffConflictSign",
+    hl_config.conflict_sign,
+    { "DiagnosticSignWarn" },
+    "#f0883e"
+  )
 
   -- Conflict sign in gutter (for merge view) - resolved conflicts (generic)
-  vim.api.nvim_set_hl(0, "CodeDiffConflictSignResolved", {
-    fg = "#6e7681",  -- Gray color for handled/resolved conflict indicator
-    default = true,
-  })
+  -- Fallback chain: user config -> Comment -> hardcoded gray
+  set_conflict_sign_hl(
+    "CodeDiffConflictSignResolved",
+    hl_config.conflict_sign_resolved,
+    { "Comment" },
+    "#6e7681"
+  )
 
   -- Conflict sign for accepted side (green - this content was chosen)
-  vim.api.nvim_set_hl(0, "CodeDiffConflictSignAccepted", {
-    fg = "#3fb950",  -- Green color (GitHub's success green)
-    default = true,
-  })
+  -- Fallback chain: user config -> GitSignsAdd -> DiagnosticSignOk -> hardcoded green
+  set_conflict_sign_hl(
+    "CodeDiffConflictSignAccepted",
+    hl_config.conflict_sign_accepted,
+    { "GitSignsAdd", "DiagnosticSignOk" },
+    "#3fb950"
+  )
 
   -- Conflict sign for rejected side (red - this content was not chosen)
-  vim.api.nvim_set_hl(0, "CodeDiffConflictSignRejected", {
-    fg = "#f85149",  -- Red color (GitHub's danger red)
-    default = true,
-  })
+  -- Fallback chain: user config -> GitSignsDelete -> DiagnosticSignError -> hardcoded red
+  set_conflict_sign_hl(
+    "CodeDiffConflictSignRejected",
+    hl_config.conflict_sign_rejected,
+    { "GitSignsDelete", "DiagnosticSignError" },
+    "#f85149"
+  )
 end
 
 return M
