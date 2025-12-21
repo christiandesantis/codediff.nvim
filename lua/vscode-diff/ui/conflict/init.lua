@@ -3,12 +3,12 @@
 local M = {}
 
 -- Import submodules
-local tracking = require("vscode-diff.ui.conflict_actions.tracking")
-local signs = require("vscode-diff.ui.conflict_actions.signs")
-local actions = require("vscode-diff.ui.conflict_actions.actions")
-local diffget = require("vscode-diff.ui.conflict_actions.diffget")
-local navigation = require("vscode-diff.ui.conflict_actions.navigation")
-local keymaps = require("vscode-diff.ui.conflict_actions.keymaps")
+local tracking = require("vscode-diff.ui.conflict.tracking")
+local signs = require("vscode-diff.ui.conflict.signs")
+local actions = require("vscode-diff.ui.conflict.actions")
+local diffget = require("vscode-diff.ui.conflict.diffget")
+local navigation = require("vscode-diff.ui.conflict.navigation")
+local keymaps = require("vscode-diff.ui.conflict.keymaps")
 
 -- Wire up cross-module dependencies
 signs._set_tracking_module(tracking)

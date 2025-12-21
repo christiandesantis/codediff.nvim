@@ -28,7 +28,7 @@ end
 function M.make_repeatable(fn)
   return function()
     _pending_action = fn
-    vim.go.operatorfunc = "v:lua.require'vscode-diff.ui.conflict_actions'.run_repeatable_action"
+    vim.go.operatorfunc = "v:lua.require'vscode-diff.ui.conflict'.run_repeatable_action"
     return "g@l"
   end
 end

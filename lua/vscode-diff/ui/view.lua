@@ -323,16 +323,16 @@ local function setup_conflict_result_window(tabpage, session_config, original_wi
   auto_refresh.enable_for_result(result_bufnr)
 
   -- Initialize conflict tracking (keymaps setup separately after setup_all_keymaps)
-  local conflict_actions = require('vscode-diff.ui.conflict_actions')
-  conflict_actions.initialize_tracking(result_bufnr, conflict_diffs.conflict_blocks)
+  local conflict = require('vscode-diff.ui.conflict')
+  conflict.initialize_tracking(result_bufnr, conflict_diffs.conflict_blocks)
 
   -- Setup autocmd to refresh signs when result buffer changes (event-driven approach)
-  conflict_actions.setup_sign_refresh_autocmd(tabpage, result_bufnr)
+  conflict.setup_sign_refresh_autocmd(tabpage, result_bufnr)
 
   -- Initialize all conflict signs (uses refresh_all_conflict_signs for centralized logic)
   local session = lifecycle.get_session(tabpage)
   if session then
-    conflict_actions.refresh_all_conflict_signs(session)
+    conflict.refresh_all_conflict_signs(session)
   end
 
   -- Return focus to modified window
@@ -790,8 +790,8 @@ function M.create(session_config, filetype, on_ready)
               if success then
                 setup_all_keymaps(tabpage, original_info.bufnr, modified_info.bufnr, false)
                 -- Setup conflict keymaps AFTER setup_all_keymaps to override do/dp
-                local conflict_actions = require('vscode-diff.ui.conflict_actions')
-                conflict_actions.setup_keymaps(tabpage)
+                local conflict = require('vscode-diff.ui.conflict')
+                conflict.setup_keymaps(tabpage)
               end
               
               -- Signal that view is ready
@@ -1071,8 +1071,8 @@ function M.update(tabpage, session_config, auto_scroll_to_first_hunk)
             if success then
               setup_all_keymaps(tabpage, original_info.bufnr, modified_info.bufnr, is_explorer_mode)
               -- Setup conflict keymaps AFTER setup_all_keymaps to override do/dp
-              local conflict_actions = require('vscode-diff.ui.conflict_actions')
-              conflict_actions.setup_keymaps(tabpage)
+              local conflict = require('vscode-diff.ui.conflict')
+              conflict.setup_keymaps(tabpage)
             end
           end
         end)
