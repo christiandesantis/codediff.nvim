@@ -532,6 +532,18 @@ function M.update(tabpage, session_config, auto_scroll_to_first_hunk)
         -- Setup all keymaps in one place (centralized)
         local is_explorer_mode = session.mode == "explorer"
         setup_all_keymaps(tabpage, original_info.bufnr, modified_info.bufnr, is_explorer_mode)
+
+        -- Restore window widths if coming from untracked file view (placeholder mode)
+        if vim.api.nvim_win_is_valid(original_win) and vim.w[original_win].codediff_placeholder then
+          vim.w[original_win].codediff_placeholder = nil
+          -- Clear the skip autocmd group
+          pcall(vim.api.nvim_del_augroup_by_name, 'codediff_skip_placeholder_' .. tabpage)
+          -- Equalize diff window widths
+          local total_width = vim.api.nvim_win_get_width(original_win) + vim.api.nvim_win_get_width(modified_win)
+          local half_width = math.floor(total_width / 2)
+          vim.api.nvim_win_set_width(original_win, half_width)
+          vim.api.nvim_win_set_width(modified_win, half_width)
+        end
       end
     end
   end
