@@ -482,6 +482,86 @@ function M.create(status_result, git_root, tabpage, width, base_revision, target
     end, vim.tbl_extend("force", map_options, { buffer = split.bufnr }))
   end
 
+  -- Open (alias for select)
+  if config.options.keymaps.explorer.open then
+    vim.keymap.set("n", config.options.keymaps.explorer.open, function()
+      local node = tree:get_node()
+      if not node then return end
+      if node.data and (node.data.type == "group" or node.data.type == "directory") then
+        if node:is_expanded() then
+          node:collapse()
+        else
+          node:expand()
+        end
+        tree:render()
+      elseif node.data then
+        explorer.on_file_select(node.data)
+      end
+    end, vim.tbl_extend("force", map_options, { buffer = split.bufnr }))
+  end
+
+  -- Focus file: jump to modified pane if file is already open, otherwise open it
+  if config.options.keymaps.explorer.focus_file then
+    vim.keymap.set("n", config.options.keymaps.explorer.focus_file, function()
+      local node = tree:get_node()
+      if not node or not node.data then return end
+
+      -- If cursor is on the already-open file, jump to the modified (right) pane
+      if node.data.path and node.data.path == explorer.current_file_path
+          and (node.data.group or "unstaged") == explorer.current_file_group then
+        local lifecycle = require('codediff.ui.lifecycle')
+        local _, mod_win = lifecycle.get_windows(tabpage)
+        if mod_win and vim.api.nvim_win_is_valid(mod_win) then
+          vim.api.nvim_set_current_win(mod_win)
+          return
+        end
+      end
+
+      -- Otherwise open the file (same as select for files, toggle for groups)
+      if node.data.type == "group" or node.data.type == "directory" then
+        if node:is_expanded() then
+          node:collapse()
+        else
+          node:expand()
+        end
+        tree:render()
+      elseif node.data.path then
+        explorer.on_file_select(node.data)
+      end
+    end, vim.tbl_extend("force", map_options, { buffer = split.bufnr }))
+  end
+
+  -- Stage file (git add)
+  local function bind_stage_file(key)
+    if key then
+      vim.keymap.set("n", key, function()
+        local node = tree:get_node()
+        if not node or not node.data or not node.data.path then return end
+        actions_module.stage_file(explorer, node.data)
+      end, vim.tbl_extend("force", map_options, { buffer = split.bufnr }))
+    end
+  end
+  bind_stage_file(config.options.keymaps.explorer.stage_file)
+  bind_stage_file(config.options.keymaps.explorer.stage_file_alt)
+
+  -- Unstage file (git restore --staged)
+  if config.options.keymaps.explorer.unstage_file then
+    vim.keymap.set("n", config.options.keymaps.explorer.unstage_file, function()
+      local node = tree:get_node()
+      if not node or not node.data or not node.data.path then return end
+      actions_module.unstage_file(explorer, node.data)
+    end, vim.tbl_extend("force", map_options, { buffer = split.bufnr }))
+  end
+
+  -- Discard file changes (with confirmation)
+  if config.options.keymaps.explorer.discard_file then
+    vim.keymap.set("n", config.options.keymaps.explorer.discard_file, function()
+      local node = tree:get_node()
+      if not node or not node.data or not node.data.path then return end
+      actions_module.discard_file(explorer, node.data)
+    end, vim.tbl_extend("force", map_options, { buffer = split.bufnr }))
+  end
+
   -- Select first file by default (conflicts first, then unstaged, then staged)
   local first_file = nil
   local first_file_group = nil
