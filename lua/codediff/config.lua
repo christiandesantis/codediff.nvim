@@ -61,6 +61,8 @@ M.defaults = {
       prev_file = "[f",
       diff_get = "do",              -- Get change from other buffer (like vimdiff)
       diff_put = "dp",              -- Put change to other buffer (like vimdiff)
+      stage_hunk = "S",             -- Stage the hunk under cursor to git index
+      unstage_hunk = "U",           -- Unstage the hunk under cursor from git index
     },
     explorer = {
       select = "<CR>",
