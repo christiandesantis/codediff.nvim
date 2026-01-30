@@ -119,12 +119,20 @@ https://github.com/user-attachments/assets/64c41f01-dffe-4318-bce4-16eec8de356e
           prev_file = "[f",   -- Previous file in explorer mode
           diff_get = "do",    -- Get change from other buffer (like vimdiff)
           diff_put = "dp",    -- Put change to other buffer (like vimdiff)
+          stage_hunk = "S",   -- Stage hunk under cursor to git index
+          unstage_hunk = "U", -- Unstage hunk under cursor from git index
         },
         explorer = {
           select = "<CR>",    -- Open diff for selected file
+          open = "o",         -- Alias for select (open file or toggle group)
+          focus_file = "l",   -- Jump to modified pane if file is open, otherwise open file
           hover = "K",        -- Show file diff preview
           refresh = "R",      -- Refresh git status
           toggle_view_mode = "i",  -- Toggle between 'list' and 'tree' views
+          stage_file = "a",       -- Stage file under cursor (git add)
+          stage_file_alt = "s",   -- Alternative binding for stage
+          unstage_file = "u",     -- Unstage file under cursor (git restore --staged)
+          discard_file = "d",     -- Discard changes or delete untracked (with confirmation)
         },
         conflict = {
           accept_incoming = "<leader>ct",  -- Accept incoming (theirs/left) change
